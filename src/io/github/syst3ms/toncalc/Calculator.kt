@@ -1,61 +1,19 @@
-import java.lang.IllegalArgumentException
-import java.util.*
-
-sealed class TONElement {
-    operator fun compareTo(o: TONElement) = lex(this.toString()).compareTo(lex(o.toString()))
-
-    private fun lex(s: String) = s.replace('0','1').replace('Ω','2').replace('C','0')
-
-    abstract override fun toString(): String
-
-    abstract fun toPrefix(): String
-}
-
-object Zero : TONElement() {
-    override fun toString() = "0"
-
-    override fun toPrefix() = "0"
-}
-
-object Omega : TONElement() {
-    override fun toString() = "Ω"
-
-    override fun toPrefix() = "Ω"
-}
-
-class C(val a: TONElement, val b : TONElement) : TONElement() {
-    override fun toString() = "$b${a}C"
-
-    override fun toPrefix() = "C(${a.toPrefix()},${b.toPrefix()})"
-}
-
-fun fromPostfix(s: String): TONElement {
-    val stack = Stack<TONElement>()
-    for (c in s) {
-        when (c) {
-            '0' -> stack.push(Zero)
-            'W', 'Z', 'X', 'Ω' -> stack.push(Omega)
-            'C' -> {
-                if (stack.size < 2)
-                    throw IllegalArgumentException()
-                val a = stack.pop()
-                val b = stack.pop()
-                stack.push(C(a,b))
-            }
-            else -> throw IllegalArgumentException()
-        }
-    }
-    if (stack.size != 1)
-        throw IllegalArgumentException()
-    return stack.pop()
-}
-
-fun String.toTON() = try { fromPostfix(this) } catch (ex : IllegalArgumentException) { fromPostfix(this.reversed().replace("[(),]".toRegex(),""))}
+package io.github.syst3ms.toncalc
 
 fun nBuilt(n: Int, a: TONElement, b: TONElement, c: TONElement): Boolean = a < b ||
         a is Omega && (n >= 1 || a < c) ||
-        a is C && n >= 1 && nBuilt(n-1, a.a, b, a) && nBuilt(n-1, a.b, b, a) ||
-        a is C && a < c && nBuilt(n, a.a, b, c) && nBuilt(n, a.b, b, c)
+        a is C && n >= 1 && nBuilt(
+    n - 1,
+    a.a,
+    b,
+    a
+) && nBuilt(n - 1, a.b, b, a) ||
+        a is C && a < c && nBuilt(
+    n,
+    a.a,
+    b,
+    c
+) && nBuilt(n, a.b, b, c)
 
 fun standardCheck(n:Int, e: TONElement): Boolean {
     if (e is Zero || e is Omega) {
@@ -86,7 +44,7 @@ fun fs(e: TONElement, n: Int, system: Int): TONElement {
             } else if (terms[1] >= Omega) {
                 terms[0] = Omega
             }
-            terms[1] = C(terms[1],terms[2])
+            terms[1] = C(terms[1], terms[2])
             terms.removeAt(2)
         }
         output = reconstruct(terms)
